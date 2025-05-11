@@ -26,6 +26,7 @@ export class OpenAIClient {
       subject: string | undefined;
       from: string | undefined;
       date: string | undefined;
+      recipient: string | undefined;
     },
     model: string = "gpt-4"
   ): Promise<{ category: string; }> {

@@ -39,11 +39,13 @@ const getEmailMetadata = async (
   id: string;
   threadId: string;
   snippet: string;
+  recipient: string | undefined;
   subject: string | undefined;
   from: string | undefined;
   date: string | undefined;
 }> => {
   console.log("📬 Fetching email metadata for message ID:", messageId);
+
   const oauth2Client = getGoogleAuthClient();
   oauth2Client.setCredentials({ access_token: auth.accessToken });
 
@@ -52,7 +54,8 @@ const getEmailMetadata = async (
   console.log("📨 Gmail message payload fetched");
 
   const headers = message.data.payload?.headers || [];
-  const getHeader = (name: string) => headers.find((h) => h.name?.toLowerCase() === name.toLowerCase())?.value;
+  const getHeader = (name: string) =>
+    headers.find((h) => h.name?.toLowerCase() === name.toLowerCase())?.value;
 
   const metadata = {
     id: messageId,
@@ -61,9 +64,11 @@ const getEmailMetadata = async (
     subject: getHeader("Subject") || undefined,
     from: getHeader("From") || undefined,
     date: getHeader("Date") || undefined,
+    recipient:
+      getHeader("Delivered-To") || getHeader("To") || undefined,
   };
-  console.log("📝 Parsed Email Metadata:", metadata);
 
+  console.log("📝 Parsed Email Metadata:", metadata);
   return metadata;
 };
 
