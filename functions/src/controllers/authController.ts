@@ -10,6 +10,7 @@ export const getAuthUrlHandler = (req: any, res: any) => {
     const scopes = [
       "https://www.googleapis.com/auth/userinfo.profile",
       "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/userinfo.email", 
     ];
 
     const authUrl = oauth2Client.generateAuthUrl({

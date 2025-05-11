@@ -121,9 +121,17 @@ export const onGmailUpdateController = async (event: any) => {
     const emailMetadata = await getEmailMetadata(latestId, gmailAuth);
     const client = getOpenAIClient();
     console.log("🧠 Sending email to OpenAI for categorization...");
-    const result = await client.categorizeEmail({ ...emailMetadata });
+    const categorization = await client.categorizeEmail({ ...emailMetadata });
 
-    console.log("📊 Categorization result:", result);
+    const record = {
+      email: emailMetadata,
+      category: categorization.category,
+      user: userEmail,
+      createdAt: Date.now(),
+    };
+
+    await db.collection("relatedEmails").add(record);
+    console.log("✅ Categorized email saved to Firestore:", record);
   } catch (err) {
     console.error("❌ Error in onGmailUpdate:", err);
   }

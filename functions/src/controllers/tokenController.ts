@@ -36,25 +36,22 @@ export const exchangeCodeForTokenHandler = https.onRequest((req, res) => {
         url: "https://openidconnect.googleapis.com/v1/userinfo",
       });
 
-
       const userInfo: any = userInfoResponse?.data;
       console.log("🙋‍♂️ UserInfo received:", userInfo);
 
+      const userEmail = userInfo?.email;
+      if (!userEmail) throw new Error("Email not found in user info.");
 
-      const username = userInfo?.name;
-      if (!username) throw new Error("Username found in user info.");
-
-      // Step 3: Save tokens
-      await db.collection("gmail_tokens").doc(username).set({
+      // Step 3: Save tokens (optional: omit refreshToken if undefined)
+      await db.collection("gmail_tokens").doc(userEmail).set({
         accessToken: tokens.access_token || "",
-        refreshToken: tokens.refresh_token || "",
+        ...(tokens.refresh_token && { refreshToken: tokens.refresh_token }),
         expiresIn: tokens.expiry_date,
         userInfo,
         createdAt: Date.now(),
       });
 
-
-      console.log("💾 Tokens saved for:", username);
+      console.log("💾 Tokens saved for:", userEmail);
 
       // Step 4: Enable Gmail watcher
       const accessToken = tokens.access_token!;
