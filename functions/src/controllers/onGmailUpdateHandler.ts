@@ -9,6 +9,15 @@ dotenv.config();
 
 // Gmail API setup
 type GmailUserContext = { accessToken: string };
+export interface FireStoreUser {
+  uid: string;
+  email: string;
+  displayName: string;
+  photoURL: string;
+  agents: any[];        
+  connections: any[]; 
+  createdAt: string;
+}
 
 let cachedGoogleAuthClient: OAuth2Client | null = null;
 function getGoogleAuthClient(): OAuth2Client {
@@ -90,6 +99,29 @@ async function getFreshAccessTokenByEmail(email: string): Promise<string> {
   return credentials.access_token!;
 }
 
+async function getUserInfoByEmail(userEmail: string): Promise<FireStoreUser> {
+  console.log("🔍 Fetching user info for:", userEmail);
+  
+  const snapshot = await db
+    .collection("users")
+    .where("email", "==", userEmail)
+    .limit(1)
+    .get();
+
+  if (snapshot.empty) {
+    throw new Error("No user found with email: " + userEmail);
+  }
+
+  const doc = snapshot.docs[0];
+  const data = doc.data();
+
+  console.log("👤 User found:", data);
+
+  return {
+    ...data
+  } as FireStoreUser;
+}
+
 export const onGmailUpdateController = async (event: any) => {
   try {
     const rawData = event.data?.message?.data;
@@ -125,18 +157,34 @@ export const onGmailUpdateController = async (event: any) => {
 
     const emailMetadata = await getEmailMetadata(latestId, gmailAuth);
     const client = getOpenAIClient();
-    console.log("🧠 Sending email to OpenAI for categorization...");
-    const categorization = await client.categorizeEmail({ ...emailMetadata });
 
-    const record = {
-      email: emailMetadata,
-      category: categorization.category,
-      user: userEmail,
-      createdAt: Date.now(),
-    };
+    console.log("🚚 Getting user info...");
+    const userInfo = await getUserInfoByEmail(userEmail);
 
-    await db.collection("relatedEmails").add(record);
-    console.log("✅ Categorized email saved to Firestore:", record);
+
+    if (Array.isArray(userInfo?.agents) && userInfo?.agents.some(agent => agent?.id === "rita")) {
+      console.log("🧠 Sending email to OpenAI for categorization...");
+      const categorization = await client.categorizeEmail({ ...emailMetadata});
+
+      if (categorization.category === "Uncategorized") {
+        console.log("Uncategorized email", emailMetadata.id);
+        return;
+      }
+
+      const record = {
+        agent: "rita",
+        email: emailMetadata,
+        category: categorization.category,
+        user: userEmail,
+        createdAt: Date.now(),
+      };
+
+      await db.collection("relatedEmails").add(record);
+      console.log("✅ Categorized email saved to Firestore:", record);
+    } else {
+        console.log("➡️ No Agent Enabled");
+    }
+
   } catch (err) {
     console.error("❌ Error in onGmailUpdate:", err);
   }
