@@ -1,8 +1,5 @@
 import OpenAI from "openai";
-import { SYSTEM_PROMPT } from "./system_prompt_mim";
-
-
-type ApplicationStatusType = "submitted" | "interviewing" | "offer" | "ghosted" | "rejected" | "other";
+import { SYSTEM_PROMPT } from "./system_prompt";
 
 export class OpenAIClient {
   private openai: OpenAI;
@@ -15,6 +12,12 @@ export class OpenAIClient {
     this.systemPrompt = SYSTEM_PROMPT;
   }
 
+  /**
+   * Categorize an email using OpenAI's API and return category with metadata.
+   * @param messageDetails - The email details object to categorize.
+   * @param model - The model to use (e.g., gpt-4).
+   * @returns An object containing category and message metadata.
+   */
   async categorizeEmail(
     messageDetails: {
       id: string;
@@ -26,33 +29,18 @@ export class OpenAIClient {
       recipient: string | undefined;
     },
     model: string = "gpt-4"
-  ): Promise<{
-    company: string;
-    title: string;
-    status: ApplicationStatusType
-  }> {
+  ): Promise<{ category: string; }> {
     try {
       console.log("✉️ Email Details:", messageDetails);
-
       const prompt = `
-        Based on the following email content, extract job application metadata in JSON format.
-
-        Return the following fields:
-        - company: the name of the company
-        - title: the job title
-        - status: one of ["submitted", "interviewing", "offer", "ghosted", "rejected", "other"]
-
-        If unsure, infer based on common hiring patterns.
-
         Subject: ${messageDetails.subject}
         Snippet: ${messageDetails.snippet}
         From: ${messageDetails.from || "Unknown Sender"}
       `.trim();
-
       console.log("📝 Sending prompt to OpenAI:", prompt);
 
       const response = await this.openai.chat.completions.create({
-        model,
+        model: model,
         messages: [
           {
             role: "system",
@@ -64,32 +52,24 @@ export class OpenAIClient {
           }
         ],
         max_tokens: 500,
-        temperature: 0.5
+        temperature: 0.7,
       });
 
-      const rawOutput = response.choices?.[0]?.message?.content || "";
+      const choices = response.choices;
+      const rawOutput = choices[0].message?.content || "";
       console.log("📨 OpenAI raw response:", rawOutput);
 
       const parsed = this.parseJsonFromString(rawOutput);
+      console.log("✅ Parsed response:", parsed);
 
-      return {
-        company: parsed.company || "Unknown",
-        title: parsed.title || "Unknown",
-        status: parsed.status as ApplicationStatusType
-      };
+      return { category: parsed?.category || "Uncategorized" };
     } catch (error) {
       console.error("❌ Error categorizing email:", error);
-      throw new Error("Failed to extract job info from email.");
+      throw new Error("Failed to categorize email.");
     }
   }
 
-
-  parseJsonFromString(input: string): {
-    company: string;
-    title: string;
-    status: string;
-  } 
-  {
+  parseJsonFromString(input: string): { category: string } {
     try {
       console.log("📦 Attempting to parse model output:", input);
       const clean = input.trim();
@@ -106,37 +86,10 @@ export class OpenAIClient {
 
       const parsed = JSON.parse(jsonString);
       console.log("🧾 JSON parsed successfully:", parsed);
-
-      return {
-        company: parsed.company,
-        title: parsed.title,
-        status: parsed.status
-      };
+      return parsed;
     } catch (error) {
       console.error("❌ Failed to parse JSON:", error);
       throw new Error("Failed to parse JSON: " + error);
-    }
-  }
-    async testConnection(): Promise<string> {
-    try {
-      const response = await this.openai.chat.completions.create({
-        model: "gpt-3.5-turbo", // ✅ Change this
-        messages: [
-          {
-            role: "user",
-            content: "Say hello"
-          }
-        ],
-        max_tokens: 10,
-        temperature: 0
-      });
-
-      const message = response.choices?.[0]?.message?.content || "No response";
-      console.log("✅ OpenAI test response:", message);
-      return message;
-    } catch (error) {
-      console.error("❌ OpenAI test connection failed:", error);
-      throw new Error("OpenAI test connection failed");
     }
   }
 }

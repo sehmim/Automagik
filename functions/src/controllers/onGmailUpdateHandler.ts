@@ -1,9 +1,13 @@
 import { google } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import * as dotenv from "dotenv";
-import { OpenAIClient } from "../services/OpenAI";
 import { db } from "..";
-import { CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, OPENAI_API_KEY } from "../config";
+import { CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, OPENAI_API_KEY, OPEN_ROUTER_APIKEY } from "../config";
+import { OpenAIClient } from "../services/OpenAI";
+import { OpenRouterClient } from "../services/OpenRouter";
+// import { OpenAIClientRita } from "../services/OpenAIbk";
+
+
 
 dotenv.config();
 
@@ -33,13 +37,23 @@ function getGoogleAuthClient(): OAuth2Client {
 }
 
 let cachedOpenAIClient: OpenAIClient | null = null;
-function getOpenAIClient() {
+export function getOpenAIClient() {
   if (!cachedOpenAIClient) {
     console.log("🧠 Initializing OpenAI client...");
     cachedOpenAIClient = new OpenAIClient(OPENAI_API_KEY!);
   }
   return cachedOpenAIClient;
 }
+
+let cachedRouterClient: OpenRouterClient | null = null;
+export function getOpenRouterClient() {
+  if (!cachedRouterClient) {
+    console.log("🧠 Initializing OpenAI client...");
+    cachedRouterClient = new OpenRouterClient(OPEN_ROUTER_APIKEY!);
+  }
+  return cachedRouterClient;
+}
+
 
 const getEmailMetadata = async (
   messageId: string,
@@ -156,36 +170,38 @@ export const onGmailUpdateController = async (event: any) => {
     console.log("📨 Latest unread message ID:", latestId);
 
     const emailMetadata = await getEmailMetadata(latestId, gmailAuth);
-    const client = getOpenAIClient();
+    const client = getOpenRouterClient();
 
     console.log("🚚 Getting user info...");
     const userInfo = await getUserInfoByEmail(userEmail);
 
-
-    if (Array.isArray(userInfo?.agents) && userInfo?.agents.some(agent => agent?.id === "rita")) {
+    if (Array.isArray(userInfo?.agents) && userInfo?.agents.some(agent => agent?.id === "mim")) {
       console.log("🧠 Sending email to OpenAI for categorization...");
-      const categorization = await client.categorizeEmail({ ...emailMetadata});
+      const categorization = await client.categorizeEmail({ ...emailMetadata });
 
-      if (categorization.category === "Uncategorized") {
-        console.log("Uncategorized email", emailMetadata.id);
+      if (categorization.status === "other") {
+        console.log("ℹ️ Skipping email with status 'other':", emailMetadata.id);
         return;
       }
 
       const record = {
-        agent: "rita",
-        email: emailMetadata,
-        category: categorization.category,
+        agent: "mim",
+        from: emailMetadata.from,
+        threadId: emailMetadata.threadId,
+        messageId: emailMetadata.id,
+        categorization,
         user: userEmail,
-        createdAt: Date.now(),
+        emailDate: emailMetadata.date,
       };
 
-      await db.collection("relatedEmails").add(record);
+      await db.collection("relatedJobEmails").add(record);
       console.log("✅ Categorized email saved to Firestore:", record);
     } else {
-        console.log("➡️ No Agent Enabled");
+      console.log("➡️ No Agent Enabled");
     }
 
   } catch (err) {
     console.error("❌ Error in onGmailUpdate:", err);
   }
 };
+

@@ -3,7 +3,10 @@ import { db } from "..";
 
 // CORS setup for localhost
 const corsHandler = cors({
-  origin: "http://localhost:8080",
+  origin: [
+    "http://localhost:8080",
+    "https://agent-dash-connect.lovable.app"
+  ],
   methods: ["POST"],
   optionsSuccessStatus: 200,
 });
@@ -15,16 +18,22 @@ export const getRelatedEmailsByAgentHandler = async (req: any, res: any) => {
       return;
     }
 
-    const { agentName, user } = req.body;
+    const { user, agentId } = req.body;
 
-    if (!agentName || !user) {
+    console.log("agentId -->", agentId);
+    console.log("user -->", user);
+
+
+    if (!user || !agentId) {
       res.status(400).json({ error: "Missing agentName or user in request body." });
       return;
     }
 
     try {
-      const snapshot = await db.collection("relatedEmails")
-        .where("agent", "==", agentName)
+        const collectionName = agentId === "mim" ? "relatedJobEmails" : "relatedEmails";
+
+      const snapshot = await db.collection(collectionName)
+        .where("agent", "==", agentId)
         .where("user", "==", user)
         .get();
 
