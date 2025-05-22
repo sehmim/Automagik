@@ -12,7 +12,7 @@ import { OpenRouterClient } from "../services/OpenRouter";
 dotenv.config();
 
 // Gmail API setup
-type GmailUserContext = { accessToken: string };
+export type GmailUserContext = { accessToken: string };
 export interface FireStoreUser {
   uid: string;
   email: string;
@@ -24,7 +24,7 @@ export interface FireStoreUser {
 }
 
 let cachedGoogleAuthClient: OAuth2Client | null = null;
-function getGoogleAuthClient(): OAuth2Client {
+export function getGoogleAuthClient(): OAuth2Client {
   if (!cachedGoogleAuthClient) {
     console.log("🔐 Initializing new OAuth2Client...");
     cachedGoogleAuthClient = new google.auth.OAuth2(
@@ -95,7 +95,7 @@ const getEmailMetadata = async (
   return metadata;
 };
 
-async function getFreshAccessTokenByEmail(email: string): Promise<string> {
+export async function getFreshAccessTokenByEmail(email: string): Promise<string> {
   console.log("🔄 Fetching refresh token for:", email);
   const doc = await db.collection("gmail_tokens").doc(email).get();
   if (!doc.exists) throw new Error("No token found for user: " + email);
