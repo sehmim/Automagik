@@ -3,7 +3,7 @@
     {
       "source": "functions",
       "codebase": "default",
-      "timeoutSeconds": 540,
+      "timeoutSeconds": 1000,
       "memory": "256MB",
       "ignore": [
         "node_modules",

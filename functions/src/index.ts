@@ -5,12 +5,13 @@ import { exchangeCodeForTokenHandler } from "./controllers/tokenController";
 import * as admin from 'firebase-admin';
 import { googleSignInHandler } from "./controllers/googleSignInHandler";
 // import { syncEmailsController } from "./controllers/syncEmailsController";
-import { onMessagePublished } from "firebase-functions/pubsub";
+import { onMessagePublished } from "firebase-functions/v2/pubsub";
 import { onGmailUpdateController } from "./controllers/onGmailUpdateHandler";
 import { getRelatedEmailsByAgentHandler } from "./controllers/getRelatedEmailsByAgentHandler";
 // import { google } from "googleapis";
 import { getEmailDetailsHandler } from "./controllers/getEmailDetailsHandler";
 import { renewGmailWatchHandler } from "./controllers/gmailWatchRenewal";
+// import { renewGmailWatchHandler } from "./controllers/gmailWatchRenewal";
 
 
 admin.initializeApp();
@@ -26,9 +27,9 @@ export const googleSignIn = https.onRequest(googleSignInHandler);
 
 export const getRelatedEmailsByAgent = https.onRequest(getRelatedEmailsByAgentHandler);
 export const getEmailDetails = https.onRequest(getEmailDetailsHandler);
+export const renewGmailWatch = https.onRequest(renewGmailWatchHandler);
 
 export const onGmailUpdate = onMessagePublished("gmail-push-topic", onGmailUpdateController);
-export const renewGmailWatch = https.onRequest(renewGmailWatchHandler);
 
 // export const testOpenAI = https.onRequest(async (req: any, res: any) => {
 //   if (req.method !== 'POST') {
