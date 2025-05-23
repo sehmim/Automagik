@@ -1,8 +1,6 @@
-import * as cors from "cors";
 import * as admin from "firebase-admin";
+import { corsHandler } from "../util/cors";
 
-// Initialize CORS middleware to allow everything
-const corsHandler = cors({ origin: true });
 
 export const getEmailsHandler = (req: any, res: any) => {
   corsHandler(req, res, async () => {

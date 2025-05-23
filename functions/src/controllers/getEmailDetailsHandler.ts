@@ -1,7 +1,10 @@
 import { google } from "googleapis";
 import { getFreshAccessTokenByEmail, getGoogleAuthClient } from "./onGmailUpdateHandler";
+import { corsHandler } from "../util/cors";
 
 export const getEmailDetailsHandler = async (req: any, res: any) => {
+      corsHandler(req, res, async () => {
+
   if (req.method !== 'POST') {
     res.status(405).send({ error: 'Only POST is allowed.' });
     return;
@@ -51,4 +54,5 @@ export const getEmailDetailsHandler = async (req: any, res: any) => {
     console.error('❌ Failed to fetch Gmail message:', error);
     res.status(500).json({ status: 'error', error: error.message || 'Unknown error' });
   }
+})
 };

@@ -1,8 +1,7 @@
-import * as cors from "cors";
 import { oauth2Client } from "../services/googleClient";
+import { corsHandler } from "../util/cors";
 
 // Initialize CORS middleware to allow everything
-const corsHandler = cors({ origin: true });
 
 export const syncEmailsController = (req: any, res: any) => {
   corsHandler(req, res, async () => {

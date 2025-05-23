@@ -1,11 +1,11 @@
-// ✅ THIS IS CORRECT
 import { google } from 'googleapis';
+import { getGoogleAuthClient } from '../controllers/onGmailUpdateHandler';
 
 export async function watchGmailInbox(accessToken: string) {
-  const auth = new google.auth.OAuth2(); // use OAuth2Client
-  auth.setCredentials({ access_token: accessToken });
+  const oauth2 = getGoogleAuthClient();
+  oauth2.setCredentials({ access_token: accessToken });
 
-  const gmail = google.gmail({ version: 'v1', auth }); // use the client
+  const gmail = google.gmail({ version: 'v1', auth: oauth2 });
 
   const res = await gmail.users.watch({
     userId: 'me',
@@ -15,5 +15,13 @@ export async function watchGmailInbox(accessToken: string) {
     },
   });
 
-  return res.data;
+  // Optional logging
+  console.log("📡 Gmail Watch Response:", res.data);
+
+  // ✅ Return just what you care about
+  return {
+    historyId: res.data.historyId || null,
+    expiration: res.data.expiration || null,
+    fullResponse: res.data
+  };
 }

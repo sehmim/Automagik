@@ -1,9 +1,6 @@
 import { REDIRECT_URI } from "../config";
 import { oauth2Client } from "../services/googleClient";
-import * as cors from "cors";
-
-// Initialize CORS middleware to allow everything
-const corsHandler = cors({ origin: true });
+import { corsHandler } from "../util/cors";
 
 export const getAuthUrlHandler = (req: any, res: any) => {
   corsHandler(req, res, () => {

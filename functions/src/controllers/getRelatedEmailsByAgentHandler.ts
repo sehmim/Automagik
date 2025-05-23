@@ -1,15 +1,5 @@
-import * as cors from "cors";
 import { db } from "..";
-
-// CORS setup for localhost
-const corsHandler = cors({
-  origin: [
-    "http://localhost:8080",
-    "https://agent-dash-connect.lovable.app"
-  ],
-  methods: ["POST"],
-  optionsSuccessStatus: 200,
-});
+import { corsHandler } from "../util/cors";
 
 export const getRelatedEmailsByAgentHandler = async (req: any, res: any) => {
   corsHandler(req, res, async () => {

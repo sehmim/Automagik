@@ -140,68 +140,77 @@ export const onGmailUpdateController = async (event: any) => {
   try {
     const rawData = event.data?.message?.data;
     const decoded = rawData ? Buffer.from(rawData, "base64").toString() : "";
-    console.log("📥 Raw Pub/Sub payload:", decoded);
-
     const historyPayload = JSON.parse(decoded);
     const userEmail = historyPayload.emailAddress;
-    console.log("📧 Incoming Gmail push notification from:", userEmail);
 
-    if (!userEmail) throw new Error("Missing emailAddress in Gmail push notification");
+    if (!userEmail) throw new Error("Missing emailAddress");
 
     const accessToken = await getFreshAccessTokenByEmail(userEmail);
     const gmailAuth: GmailUserContext = { accessToken };
-
     const oauth2Client = getGoogleAuthClient();
     oauth2Client.setCredentials({ access_token: accessToken });
-
     const gmail = google.gmail({ version: "v1", auth: oauth2Client });
-    console.log("📬 Checking for latest unread messages...");
-    const recentMessages = await gmail.users.messages.list({
-      userId: "me",
-      maxResults: 1,
-      q: "is:unread",
-    });
 
-    const latestId = recentMessages.data.messages?.[0]?.id;
-    if (!latestId) {
-      console.log("⚠️ No new unread messages found.");
+    const userDoc = await db.collection("gmail_tokens").doc(userEmail).get();
+    const lastHistoryId = userDoc.data()?.lastHistoryId;
+
+    if (!lastHistoryId) {
+      console.log("⚠️ No lastHistoryId stored. Skipping history fetch.");
       return;
     }
-    console.log("📨 Latest unread message ID:", latestId);
 
-    const emailMetadata = await getEmailMetadata(latestId, gmailAuth);
+    const history = await gmail.users.history.list({
+      userId: "me",
+      startHistoryId: lastHistoryId,
+      historyTypes: ['messageAdded'],
+    });
+
+    const changes = history.data.history || [];
+    if (changes.length === 0) {
+      console.log("📭 No new message history changes.");
+      return;
+    }
+
+    console.log(`📨 Found ${changes.length} history changes.`);
+
     const client = getOpenRouterClient();
-
-    console.log("🚚 Getting user info...");
     const userInfo = await getUserInfoByEmail(userEmail);
 
-    if (Array.isArray(userInfo?.agents) && userInfo?.agents.some(agent => agent?.id === "mim")) {
-      console.log("🧠 Sending email to OpenAI for categorization...");
-      const categorization = await client.categorizeEmail({ ...emailMetadata });
+    for (const change of changes) {
+      const messages = change.messages || [];
+      for (const msg of messages) {
+        const metadata = await getEmailMetadata(msg.id!, gmailAuth);
 
-      if (categorization.status === "other") {
-        console.log("ℹ️ Skipping email with status 'other':", emailMetadata.id);
-        return;
+        if (Array.isArray(userInfo?.agents) && userInfo.agents.some(agent => agent?.id === "mim")) {
+          const categorization = await client.categorizeEmail({ ...metadata });
+          if (categorization.status === "other") {
+            console.log("⏩ Skipping email with status 'other':", metadata.id);
+            continue;
+          }
+
+          const record = {
+            agent: "mim",
+            from: metadata.from,
+            threadId: metadata.threadId,
+            messageId: metadata.id,
+            categorization,
+            user: userEmail,
+            emailDate: metadata.date,
+          };
+
+          await db.collection("relatedJobEmails").add(record);
+          console.log("✅ Email saved:", record);
+        }
       }
+    }
 
-      const record = {
-        agent: "mim",
-        from: emailMetadata.from,
-        threadId: emailMetadata.threadId,
-        messageId: emailMetadata.id,
-        categorization,
-        user: userEmail,
-        emailDate: emailMetadata.date,
-      };
-
-      await db.collection("relatedJobEmails").add(record);
-      console.log("✅ Categorized email saved to Firestore:", record);
-    } else {
-      console.log("➡️ No Agent Enabled");
+    const latestHistoryId = history.data.historyId;
+    if (latestHistoryId) {
+      await userDoc.ref.update({ lastHistoryId: latestHistoryId, updatedAt: Date.now() });
+      console.log("📌 Updated lastHistoryId to:", latestHistoryId);
     }
 
   } catch (err) {
     console.error("❌ Error in onGmailUpdate:", err);
   }
 };
-
